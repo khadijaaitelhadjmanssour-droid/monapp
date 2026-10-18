@@ -5,6 +5,9 @@ import streamlit as st
 
 from core import state, theme
 from core.demo_data import PRODUCTS_BY_ID, STYLES
+from core.format import dh, dh0
+from ui import assets
+from ui.components import tile_html
 
 COULEURS = ["crème", "beige", "kaki", "marine", "bordeaux", "lilas",
             "noir", "sauge", "terracotta", "blanc"]
@@ -26,6 +29,8 @@ OCC_BONUS = {"Travail": "business", "Soirée": "rock", "Événement": "romantiqu
 
 OCCASIONS = ["Quotidien", "Travail", "Week-end", "Soirée", "Événement", "Vacances"]
 
+MAX_STYLES = 4
+
 
 def render():
     p = st.session_state.profile
@@ -40,10 +45,10 @@ def render():
                "mode de vie, budget. Tu pourras tout relancer à tout moment.")
 
     total_steps = 5
-    st.progress((st.session_state.quiz_step) / (total_steps - 1),
-                text=f"Étape {st.session_state.quiz_step + 1} / {total_steps}")
-
     step = st.session_state.quiz_step
+    st.progress(step / (total_steps - 1),
+                text=f"Étape {step + 1} / {total_steps}")
+
     nxt = None
     if step == 0:
         qa["pseudo"] = st.text_input("Comment veux-tu être appelé(e) ?",
@@ -52,12 +57,8 @@ def render():
                                      value=qa.get("taille", ""), placeholder="ex. M / 38 / 42")
         nxt = st.button("Continuer →", type="primary")
     elif step == 1:
-        st.markdown("**Quels styles te parlent ?** (jusqu'à 4)")
-        qa["styles"] = st.multiselect("Styles", STYLES, default=qa.get("styles", []),
-                                      max_selections=4, label_visibility="collapsed",
-                                      placeholder="jusqu'à 4 styles…")
-        nxt = st.button("Continuer →", type="primary",
-                        disabled=len(qa.get("styles", [])) == 0)
+        _champ_styles(qa)
+        nxt = None
     elif step == 2:
         st.markdown("**Tes couleurs amies** 🎨")
         qa["couleurs_amies"] = st.multiselect(
@@ -69,31 +70,83 @@ def render():
             COULEURS, default=qa.get("couleurs_bannies", []), label_visibility="collapsed")
         nxt = st.button("Continuer →", type="primary")
     elif step == 3:
-        sl = st.slider("Budget moyen par pièce (€)", 10, 500,
+        sl = st.slider("Budget moyen par pièce (DH)", 10, 500,
                        value=int(qa.get("budget", p["budget"])), step=10)
         qa["budget"] = sl
         qa["occasions"] = st.multiselect("Quand t'habilles-tu le plus ?",
                                          OCCASIONS, default=qa.get("occasions", []),
                                          placeholder="choisir…")
+        idx = LIFESTYLES.index(qa["lifestyle"]) if qa.get("lifestyle") in LIFESTYLES else 0
         qa["lifestyle"] = st.selectbox("Ton mode de vie ressemble à…",
-                                       LIFESTYLES, index=0)
+                                       LIFESTYLES, index=idx)
         nxt = st.button("Continuer →", type="primary")
     elif step == 4:
         _recap(qa)
         nxt = st.button("✨ Activer mon profil IA", type="primary")
 
-    _, b = st.columns([6, 1])
-    if b.button("←", key="prev"):
-        st.session_state.quiz_step = max(0, step - 1)
+    if step == 1:
+        # la navigation est gérée par le sélecteur visuel (étape 1)
+        nxt = st.button("Continuer →", type="primary",
+                        disabled=len(qa.get("styles", [])) == 0)
+
+    bret, _rest = st.columns([1, 9])
+    if bret.button("← Retour", key="prev", disabled=step == 0):
+        st.session_state.quiz_step = step - 1
         st.rerun()
+
     if nxt:
         if step == 0 and not qa.get("pseudo", "").strip():
             st.warning("Donne-moi au moins un prénom/pseudo 🙂")
+        elif step == 4:
+            _activer_profil(qa)
+            st.session_state.quiz_step = 0
+            st.rerun()
         else:
             st.session_state.quiz_step = step + 1
-        if step == 4:
-            _activer_profil(qa)
-        st.rerun()
+            st.rerun()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+def _style_tile(name: str, selected: bool) -> str:
+    """Tuile visuelle d'un style (illustration SVG locale) + état choisi."""
+    chk = ('<span class="t-badge" style="left:auto; right:10px; top:10px;'
+           'background:#B34168; color:#fff">✓</span>') if selected else ""
+    return tile_html(f"st_{name}", "", "", chk, height=115,
+                     img=assets.bg_deck([("styles", name)]))
+
+
+def _champ_styles(qa):
+    """Sélecteur de styles en boutons illustrés (max 4) + navigation."""
+    st.markdown(f"**Quels styles te parlent ?** (jusqu'à {MAX_STYLES}) "
+                f"· {len(qa.get('styles', []))} choisi(s)")
+    cur = qa.setdefault("styles", [])
+    invalid = [s for s in cur if s not in STYLES]      # nettoyage si styles retraités
+    for s in invalid:
+        cur.remove(s)
+
+    rows = [STYLES[i:i + 5] for i in range(0, len(STYLES), 5)]
+    for row in rows:
+        cols = st.columns(5)
+        for c, s in zip(cols, row):
+            sel = s in cur
+            c.markdown(_style_tile(s, sel), unsafe_allow_html=True)
+            if len(cur) >= MAX_STYLES and not sel:
+                c.button("—", key=f"qs_{s}", disabled=True, use_container_width=True)
+            elif c.button(("N'en plus vouloir" if sel else "✧ Choisir"),
+                          key=f"qs_{s}", use_container_width=True):
+                if sel:
+                    cur.remove(s)
+                else:
+                    if len(cur) >= MAX_STYLES:
+                        st.toast(f"{MAX_STYLES} styles maximum — retire un style "
+                                 "pour en changer.")
+                    else:
+                        cur.append(s)
+                st.rerun()
+    if cur:
+        from core.theme import chips
+        st.markdown(f"<div style='margin-top:6px'>{chips(cur)}</div>",
+                    unsafe_allow_html=True)
 
 
 def _recap(qa):
@@ -107,7 +160,7 @@ def _recap(qa):
         )
     with c2:
         st.markdown(
-            f"**Budget ·** {qa.get('budget', 0):.0f} €/pièce  \n"
+            f"**Budget ·** {dh(qa.get('budget', 0))}/pièce  \n"
             f"**Occasions ·** {', '.join(qa.get('occasions', []) or ['—'])}  \n"
             f"**Couleurs ·** {', '.join(qa.get('couleurs_amies', []) or ['—'])}"
         )
@@ -148,7 +201,7 @@ def _portait(p):
     top = sorted(p["styles_scores"].items(), key=lambda kv: -kv[1]) or [("à définir", 0)]
     c1, c2, c3 = st.columns(3)
     with c1:
-        theme.stat_card(f"{p['budget']:.0f} €", "budget moyen / pièce")
+        theme.stat_card(dh0(p["budget"]), "budget moyen / pièce (DH)")
     with c2:
         total = sum(v for _, v in top)
         pct = round(top[0][1] / total * 100) if total else 0

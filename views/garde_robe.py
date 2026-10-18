@@ -10,8 +10,10 @@ from pathlib import Path
 import streamlit as st
 from PIL import Image
 
-from core import ai_engine, state, theme
-from ui.components import gradient_for, tile_html
+from core import state, theme
+from core.format import dh0
+from ui import assets
+from ui.components import tile_html
 
 CATEGORIES = ["Hauts", "Bas", "Vestes", "Robes", "Chaussures", "Accessoires"]
 COULEURS = ["crème", "beige", "kaki", "marine", "bordeaux", "lilas",
@@ -60,7 +62,7 @@ def _ajout_piece_block():
         coupling_color = c2.multiselect("Couleurs", COULEURS, placeholder="choisir…")
         c3, c4 = st.columns(2)
         styles = c3.multiselect("Styles", STYLES_GR[:10], placeholder="choisir…")
-        price = c4.number_input("Prix payé (€)", 0.0, 2000.0, 50.0, step=5.0)
+        price = c4.number_input("Prix payé (DH)", 0.0, 2000.0, 50.0, step=5.0)
         occ = st.multiselect("Occasions", ["Quotidien", "Travail", "Week-end", "Soirée",
                                            "Événement", "Vacances"], placeholder="choisir…")
         photo = st.file_uploader("Photo (optionnelle)", type=["jpg", "jpeg", "png"],
@@ -104,14 +106,32 @@ def _ajout_piece(name, cat, colors, styles, price, occ, photo):
     state.persist()
 
 
-def _photo_html(item, gradient):
-    if item.get("photo"):
+def _piece_tile(item) -> str:
+    """Aperçu de la pièce : photo utilisateur → illustration catégorie → dégradé.
+    Les images sont TOUJOURS des <img> (l'assainisseur Streamlit supprime
+    les url(data:…) en CSS inline)."""
+    if item.get("photo") and (UPLOAD_DIR / item["photo"]).exists():
         fpath = UPLOAD_DIR / item["photo"]
-        if fpath.exists():
-            b64 = base64.b64encode(fpath.read_bytes()).decode()
-            return f'background:url(data:image/jpeg;base64,{b64}) center/cover;' \
-                   f' width:100%; height:140px; border-radius:18px;'
-    return f"background:{gradient}; width:100%; height:140px; border-radius:18px;"
+        b64 = base64.b64encode(fpath.read_bytes()).decode()
+        return (f'<div class="tile" style="height:150px;">'
+                f'<img class="tile-img" src="data:image/jpeg;base64,{b64}" '
+                f'alt="Photo de {item["name"]}"/></div>')
+    img = assets.bg_deck([("categories", item["category"])])
+    sw = "".join(f'<div class="sw" style="background:{_couleur_hex(c)}"></div>'
+                 for c in item["colors"][:3])
+    return tile_html(f"gr_{item['id']}", "", "", '', height=150, img=img,
+                     extra_inner=f'<div class="swatches" style="top:auto; bottom:10px;">{sw}</div>')
+
+
+COULEUR_HEX = {
+    "crème": "#F5EBDD", "beige": "#D9C5A0", "kaki": "#9CAF88", "marine": "#2E3A59",
+    "bordeaux": "#7C2D3A", "lilas": "#C9B8DB", "noir": "#1A1523", "sauge": "#9CAF88",
+    "terracotta": "#C96F4A", "blanc": "#FFFFFF",
+}
+
+
+def _couleur_hex(c: str) -> str:
+    return COULEUR_HEX.get(c, "#C9A227")
 
 
 def _render_pieces():
@@ -122,11 +142,10 @@ def _render_pieces():
         styles_chips = "".join(
             f'<span class="chip">{s}</span>' for s in it["styles"][:2])
         c.markdown(
-            f'<div class="tile" style="{_photo_html(it, gradient_for(it["id"]))};'
-            f' margin-bottom:6px;"></div>'
-            f"<div style='font-size:.86rem; font-weight:600'>{it['name']}</div>"
+            _piece_tile(it)
+            + f"<div style='font-size:.86rem; font-weight:600'>{it['name']}</div>"
             f"<div style='font-size:.74rem; opacity:.6'>{it['category']}"
-            f" · {it['price']:.0f} €</div>"
+            f" · {dh0(it['price'])}</div>"
             f"<div style='margin:4px 0'>{styles_chips}</div>",
             unsafe_allow_html=True,
         )
@@ -181,14 +200,23 @@ def _mes_tenues():
         st.caption("Aucune tenue enregistrée pour l'instant.")
         return
     st.markdown(f"#### Mes tenues ({len(st.session_state.tenues)})")
-    by_id = {it["id"]: it for it in st.session_state.garde_robe}
+    from core.demo_data import PRODUCTS_BY_ID
+
+    def nom_piece(pid: str) -> str:
+        gr = {it["id"]: it for it in st.session_state.garde_robe}
+        if pid in gr:
+            return gr[pid]["name"]
+        p = PRODUCTS_BY_ID.get(pid)
+        return p["name"] if p else f"pièce {pid[:6]}"
+
     cols = st.columns(3)
     for i, t in enumerate(list(st.session_state.tenues)):
         c = cols[i % 3]
-        noms = [by_id[pid]["name"] for pid in t["pieces"] if pid in by_id]
+        noms = [nom_piece(pid) for pid in t["pieces"]]
         c.markdown(
             f'<div class="outfit-card"><h4>{t["nom"]}</h4>'
-            f"<div style='font-size:.8rem'>{noms and (' · '.join(noms))}</div></div>",
+            f"<div style='font-size:.8rem'>"
+            f"{(' · '.join(noms)) if noms else '—'}</div></div>",
             unsafe_allow_html=True,
         )
         if c.button("✕ Retirer", key=f"delout_{t['id']}", use_container_width=True):

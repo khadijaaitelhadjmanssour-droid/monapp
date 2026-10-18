@@ -54,6 +54,8 @@ h1, h2, h3 {font-weight: 700; letter-spacing: -0.01em;}
   font-size: .72rem; font-weight: 600; margin: 0 6px 6px 0;
   background: rgba(212,130,158,.14); color: #7C2D3A;
   border: 1px solid rgba(179,65,104,.25);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; vertical-align: middle;
 }
 .demo-chip{
   display: inline-block; padding: 2px 8px; border-radius: 999px;
@@ -66,13 +68,18 @@ h1, h2, h3 {font-weight: 700; letter-spacing: -0.01em;}
 .chip-follow{ background: #E8E4F7; color: #5B4B8A; border-color: #5B4B8A55;}
 .chip-premium{ background: linear-gradient(90deg,#C9A227,#B34168); color:#fff; border:none;}
 
-/* ── Tuiles visuelles (remplace les photos) ──────────────── */
+/* ── Tuiles visuelles ────────────────────────────────────── */
 .tile{
   border-radius: 18px; color:#fff; position: relative; overflow: hidden;
   box-shadow: 0 8px 24px rgba(26,21,35,.10); margin-bottom: 2px;
   display:flex; align-items:flex-end;
 }
+.tile .tile-img{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; display:block;
+}
 .tile .overlay{
+  position:relative; z-index:2;
   width:100%; padding: 30px 14px 12px 14px;
   background: linear-gradient(180deg, transparent 0%, rgba(26,21,35,.62) 130%);
   box-sizing: border-box;
@@ -82,13 +89,13 @@ h1, h2, h3 {font-weight: 700; letter-spacing: -0.01em;}
 .tile .t-sub{ font-size: .75rem; opacity: .9; margin-top: 2px;}
 .tile .t-price{ font-size: .8rem; opacity: .95; font-weight: 700; margin-top: 4px;}
 .tile .t-badge{
-  position: absolute; top: 10px; left: 10px; padding: 3px 9px;
+  position: absolute; top: 10px; left: 10px; padding: 3px 9px; z-index:2;
   border-radius: 999px; font-size: .68rem; font-weight: 700;
   background: rgba(255,255,255,.9); color: #1A1523;
 }
 .tile .t-badge.badge-sponsored{ background:#5B4B8A; color:#fff;}
 .tile .t-badge.badge-demo{ background:#FFF3C9; color:#8A6D1D; border:1px dashed #C9A227;}
-.tile .swatches{ position: absolute; top: 12px; right: 12px; display:flex; gap:4px;}
+.tile .swatches{ position: absolute; top: 12px; right: 12px; display:flex; gap:4px; z-index:2;}
 .sw{ width:14px; height:14px; border-radius:50%; border:1.5px solid rgba(255,255,255,.85);}
 
 /* ── Cartes profil / stats ───────────────────────────────── */
@@ -96,7 +103,8 @@ h1, h2, h3 {font-weight: 700; letter-spacing: -0.01em;}
   background:#fff; border-radius:18px; padding:18px 20px; margin-bottom:12px;
   box-shadow: 0 4px 16px rgba(26,21,35,.06); border: 1px solid #F0E6DC;
 }
-.stat-card .v{ font-size: 1.5rem; font-weight: 800; color:#B34168;}
+.stat-card .v{ font-size: clamp(1.05rem, 2.6vw, 1.5rem); font-weight: 800;
+  color:#B34168; overflow-wrap: anywhere;}
 .stat-card .k{ font-size: .78rem; color:#7A7284; text-transform: uppercase;
   letter-spacing:.06em;}
 .bar{ height:8px; border-radius:6px; background:#F0E6DC; overflow:hidden; margin: 4px 0 10px 0;}
@@ -118,8 +126,21 @@ h1, h2, h3 {font-weight: 700; letter-spacing: -0.01em;}
 /* ── Boutons ─────────────────────────────────────────────── */
 .stButton > button{
   border-radius: 12px; font-size: .85rem; transition: all .18s;
+  min-height: 2.4rem;
 }
 .stButton > button:hover{ transform: translateY(-1px); box-shadow: 0 4px 12px rgba(179,65,104,.18);}
+.stButton > button:focus-visible{ outline: 2px solid #B34168; outline-offset: 2px;}
+.stButton > button:disabled{ opacity: .45; transform: none; box-shadow: none;}
+.tile{ transition: transform .18s, box-shadow .18s;}
+.tile:hover{ transform: translateY(-2px); box-shadow: 0 12px 28px rgba(26,21,35,.14);}
+
+/* ── Responsive : mobile ─────────────────────────────────── */
+@media (max-width: 640px){
+  .hero{ padding: 22px 20px; border-radius: 18px;}
+  .hero h1{ font-size: 1.5rem;}
+  .stat-card{ padding: 14px 16px;}
+  .outfit-card{ padding: 14px;}
+}
 
 .divider-soft{ height:1px; background:#EFE3D8; margin: 18px 0;}
 """

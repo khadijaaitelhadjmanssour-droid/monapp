@@ -101,6 +101,7 @@ with st.sidebar:
 
     if st.button("↺ Réinitialiser la démo", key="reset_demo", use_container_width=True):
         st.session_state.clear()
+        st.session_state["fresh_start"] = True
         st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────

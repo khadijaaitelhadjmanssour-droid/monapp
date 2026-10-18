@@ -39,6 +39,7 @@ BASE_KEYS = {
     "tenues": lambda: [],            # outfits construits avec ses vêtements
     "dream_wardrobe": lambda: [],    # envies d'achats futurs
     "looks_sauvegardes": lambda: [], # ids du feed sauvegardés
+    "adapted_looks": lambda: {},     # {aid: {celeb, source, total, pieces, why}}
     "moodboards": lambda: {},        # {id: {"name":..., "items":[itemIds]}}
     "follows": lambda: [],           # ids de créateurs/stylistes suivis
     "chat": lambda: [],
@@ -49,7 +50,9 @@ BASE_KEYS = {
 
 
 def init():
-    """Initialise la session et charge la persistance locale si elle existe."""
+    """Initialise la session ; au premier tour, reprend le profil le plus
+    récent du disque s'il existe (le rafraîchissement de la page F5 ne
+    doit PAS faire repartir l'utilisateur de zéro)."""
     for k, factory in BASE_KEYS.items():
         if k not in st.session_state:
             st.session_state[k] = factory()
@@ -58,15 +61,33 @@ def init():
 
     if "loaded_once" not in st.session_state:
         st.session_state["loaded_once"] = True
+        if st.session_state.get("fresh_start"):
+            # la démo vient d'être réinitialisée : on repart de zéro SANS recharger
+            st.session_state.pop("fresh_start", None)
+            return
+        fichiers = sorted(
+            USERS_DIR.glob("*.json"),
+            key=lambda f: f.stat().st_mtime,
+            reverse=True,
+        )
         path = USERS_DIR / f"{st.session_state.user_id}.json"
-        if path.exists():  # ne devrait jamais se produire (id aléatoire), au cas où
-            load(path)
-            # normalisation (compatibilité ancien fichier : budget float → int)
-            p = st.session_state.profile
-            try:
-                p["budget"] = int(float(p.get("budget", 120) or 120))
-            except (TypeError, ValueError):
-                p["budget"] = 120
+        if path.exists():  # (id aléatoire) — cas théorique, au cas où
+            fichiers = [path]
+        elif not fichiers:
+            return
+        load(fichiers[0])
+        # normalisation douce (compatibilité fichiers plus anciens)
+        p = st.session_state.profile
+        try:
+            p["budget"] = int(float(p.get("budget", 120) or 120))
+        except (TypeError, ValueError):
+            p["budget"] = 120
+        for k2, typ in (("garde_robe", list), ("tenues", list),
+                        ("dream_wardrobe", list), ("looks_sauvegardes", list),
+                        ("moodboards", dict), ("follows", list),
+                        ("adapted_looks", dict)):
+            if not isinstance(st.session_state.get(k2), typ):
+                st.session_state[k2] = typ()
 
 
 def load(path):
@@ -76,7 +97,7 @@ def load(path):
         return
     st.session_state.user_id = payload.get("user_id", st.session_state.user_id)
     for key in ("profile", "garde_robe", "tenues", "dream_wardrobe",
-                "looks_sauvegardes", "moodboards", "follows"):
+                "looks_sauvegardes", "adapted_looks", "moodboards", "follows"):
         if key in payload:
             st.session_state[key] = payload[key]
 
@@ -91,6 +112,7 @@ def persist():
         "tenues": st.session_state.tenues,
         "dream_wardrobe": st.session_state.dream_wardrobe,
         "looks_sauvegardes": st.session_state.looks_sauvegardes,
+        "adapted_looks": st.session_state.adapted_looks,
         "moodboards": st.session_state.moodboards,
         "follows": st.session_state.follows,
     }

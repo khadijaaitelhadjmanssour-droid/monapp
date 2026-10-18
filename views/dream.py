@@ -9,7 +9,9 @@ import streamlit as st
 
 from core import ai_engine, state, theme
 from core.demo_data import PRODUCTS_BY_ID
-from ui.components import gradient_for, product_card, tile_html
+from core.format import dh, dh0
+from ui import assets
+from ui.components import tile_html
 
 
 def render():
@@ -30,9 +32,9 @@ def render():
     with c1:
         theme.stat_card(f"{len(dw)}", "pièces rêvées")
     with c2:
-        theme.stat_card(f"{total:.0f} €", "coût total (prix démo)")
+        theme.stat_card(dh(total), "coût total (prix démo, DH)")
     with c3:
-        theme.stat_card(f"{cible:.0f} €", "prix cible visé")
+        theme.stat_card(dh(cible), "prix cible visé")
     with c4:
         theme.stat_card(f"{eco_count}/{len(dw)}", "pièces éthiques ✓")
 
@@ -47,9 +49,25 @@ def render():
             continue
         _dream_row(it, prod)
 
-    if st.button("🗑️ Vider le Dream Wardrobe"):
-        st.session_state.dream_wardrobe = []
-        state.persist()
+    # ── Vidange à double confirmation (pas de suppression accidentelle) ───
+    if st.session_state.get("dw_clear_confirm"):
+        cw1, cw2, gold = st.columns([1.2, 1.2, 2.6])
+        gold.markdown("<span class='demo-chip'>DÉMO</span> Les envies démo se "
+                      "régénèrent depuis le fil ou le styliste.",
+                      unsafe_allow_html=True)
+        if cw1.button("✅ Oui, tout vider", key="dw_clear_yes", type="primary",
+                      use_container_width=True):
+            st.session_state.dream_wardrobe = []
+            st.session_state["dw_clear_confirm"] = False
+            state.persist()
+            st.rerun()
+        if cw2.button("↩️ Annuler", key="dw_clear_no", use_container_width=True):
+            st.session_state["dw_clear_confirm"] = False
+            st.rerun()
+        st.warning("Tu vas supprimer toutes tes envies — cette action est définitive "
+                   "dans cette session.", icon="🗑️")
+    elif st.button("🗑️ Vider le Dream Wardrobe"):
+        st.session_state["dw_clear_confirm"] = True
         st.rerun()
 
     state.consume_notif()
@@ -74,19 +92,17 @@ def _dream_row(it, prod):
     c1, c2, c3, c4 = st.columns([1.05, 1.15, 1.25, .9])
 
     with c1:
-        st.markdown(
-            f'<div class="tile" style="background:{gradient_for(it["id"])};'
-            f'height:120px;"></div>',
-            unsafe_allow_html=True,
-        )
+        img = assets.bg_deck([("products", it["id"])])
+        st.markdown(tile_html(f"dw_{it['id']}", "", "", "", height=120, img=img),
+                    unsafe_allow_html=True)
         if red >= 10:
             st.markdown(f"<span class='chip chip-second'>🔥 PROMO démo −{red} %"
                         f"</span>", unsafe_allow_html=True)
 
     with c2:
         st.markdown(f"**{it['name']}**")
-        st.caption(f"{it['brand']} · étiquette {it['price']:.0f} €")
-        tp = st.number_input("Prix cible €", 0, int(it["price"]), key=f"tp_{it['id']}",
+        st.caption(f"{it['brand']} · étiquette {dh(it['price'])}")
+        tp = st.number_input("Prix cible (DH)", 0, int(it["price"]), key=f"tp_{it['id']}",
                              value=int(it["target_price"]))
         if tp != it["target_price"]:
             it["target_price"] = float(tp)
@@ -101,16 +117,16 @@ def _dream_row(it, prod):
         ok_achat = (prix_auj <= it["target_price"] or red >= 15)
         st.markdown("État de la veille (démo)")
         if prix_auj <= it["target_price"]:
-            st.success(f"Signal ! Prix du jour : **{prix_auj:.0f} €** — sous ton prix cible "
-                       f"({it['target_price']:.0f} €)." +
+            st.success(f"Signal ! Prix du jour : **{dh0(prix_auj)}** — sous ton prix cible "
+                       f"({dh0(it['target_price'])})." +
                        (" 🔔 Alerte active." if it.get("alerte") else ""))
         elif red >= 15:
-            st.warning(f"Bonne promo du jour (−{red} %) : **{prix_auj:.0f} €**. "
-                       f"Encore au-dessus de ta cible ({it['target_price']:.0f} €) — "
+            st.warning(f"Bonne promo du jour (−{red} %) : **{dh0(prix_auj)}**. "
+                       f"Encore au-dessus de ta cible ({dh0(it['target_price'])}) — "
                        "l'agent continue de guetter.")
         else:
-            st.info(f"Prix au jour le jour (démo) : **{prix_auj:.0f} €** vs cible "
-                    f"{it['target_price']:.0f} €. On continue de veiller 👀")
+            st.info(f"Prix au jour le jour (démo) : **{dh0(prix_auj)}** vs cible "
+                    f"{dh0(it['target_price'])}. On continue de veiller 👀")
         if ok_achat and not it.get("alerte"):
             if st.button("🔔 Créer l'alerte (démo)", key=f"al_{it['id']}"):
                 it["alerte"] = True
@@ -120,12 +136,13 @@ def _dream_row(it, prod):
     with c4:
         if alt:
             st.markdown("<span class='chip'>alternative IA</span>", unsafe_allow_html=True)
+            st.markdown(tile_html(f"alt_{alt['id']}", "", "", "", height=64,
+                                  img=assets.bg_deck([("products", alt["id"])])),
+                        unsafe_allow_html=True)
             st.markdown(
-                f'<div class="tile" style="background:{gradient_for(alt["id"])};'
-                f'height:64px; margin:2px 0;"></div>'
                 f"<div style='font-size:.8rem'>{alt['name']}<br>"
-                f"<b>{alt['price']:.0f} €</b> "
-                f"<span style='opacity:.6'>(−{it['price'] - alt['price']:.0f} €)</span></div>",
+                f"<b>{dh(alt['price'])}</b> "
+                f"<span style='opacity:.6'>(−{dh0(it['price'] - alt['price'])})</span></div>",
                 unsafe_allow_html=True,
             )
             if st.button(f"✦ Rêver {alt['name'][:14]}…", key=f"alt_{it['id']}",

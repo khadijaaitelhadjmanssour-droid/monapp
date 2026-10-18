@@ -11,6 +11,8 @@ import streamlit as st
 
 from core import state
 from core.demo_data import CREATORS_BY_ID, PRODUCTS_BY_ID
+from core.format import dh
+from ui import assets
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,14 +41,18 @@ def gradient_for(key: str) -> str:
 
 
 def tile_html(key, title, sub="", badges="", height=180, swatches=None,
-              extra_inner="") -> str:
+              extra_inner="", img=None) -> str:
+    """Tuile Pinterest : illustration locale en <img> de fond (fiable via
+    l'assainisseur Streamlit) + dégradé déterministe en repli."""
+    deck = gradient_for(key)
+    media = f'<img class="tile-img" src="{img}" alt="" loading="lazy"/>' if img else ""
     sw = ""
     if swatches:
         sw = '<div class="swatches">' + "".join(
             f'<div class="sw" style="background:{c}"></div>' for c in swatches[:4]) + "</div>"
     return (
-        f'<div class="tile" style="background:{gradient_for(key)}; height:{height}px;">'
-        f"{sw}{badges}"
+        f'<div class="tile" style="background:{deck}; height:{height}px;">'
+        f"{media}{sw}{badges}"
         f'<div class="overlay"><div class="t-title">{title}</div>'
         f'{f"<div class=t-sub>{sub}</div>" if sub else ""}{extra_inner}</div></div>'
     )
@@ -78,16 +84,22 @@ def feed_card(f, col):
     for pid in f["products"][:3]:
         swatches.extend(PRODUCTS_BY_ID[pid]["colors"][:2])
     badges = badges_for_item("look", sponsored=f["sponsored"])
+    img_sources = [("looks", f["id"])]
+    if f["products"]:
+        img_sources.append(("products", f["products"][0]))
+    img = assets.bg_deck(img_sources)
     col.markdown(
         tile_html(f["id"], f["title"], f"{creator.get('name','')} · "
                   f"{creator.get('specialty','')}", badges, height=int(200 * f["size"]),
-                  swatches=swatches),
+                  swatches=swatches, img=img),
         unsafe_allow_html=True,
     )
+    col.caption(f"≈ {dh(price_total)} · {len(f['products'])} pièces")
     b1, b2 = col.columns(2)
     saved = f["id"] in st.session_state.looks_sauvegardes
-    if b1.button("♡ Épingler" if not saved else "✓ Épinglé",
-                 key=f"save_{f['id']}", use_container_width=True):
+    if b1.button("Épingler" if not saved else "Épinglé ✓",
+                 key=f"save_{f['id']}", use_container_width=True,
+                 help="Ajouter / retirer ce look de tes favoris ♥"):
         if saved:
             st.session_state.looks_sauvegardes.remove(f["id"])
         else:
@@ -95,8 +107,9 @@ def feed_card(f, col):
             state.notif("Look enregistré dans tes favoris ♥")
         st.rerun()
     follow = f["id"] in st.session_state.follows
-    if b2.button("✓ Suivi" if follow else "Suivre",
-                 key=f"fol_{f['id']}", use_container_width=True):
+    if b2.button("Suivi ✓" if follow else "Suivre",
+                 key=f"fol_{f['id']}", use_container_width=True,
+                 help=f"Suivre {creator.get('name', 'ce créateur')}"):
         if follow:
             st.session_state.follows.remove(f["id"])
         else:
@@ -115,15 +128,18 @@ def product_card(p, col, height=160, cta="✦ Dream Wardrobe", key_suffix=""):
         tags.append('<span class="chip chip-second">Seconde main</span>')
     if p["ethical"] >= 4:
         tags.append('<span class="chip chip-eco">Éthique ✓</span>')
+    img = assets.bg_deck([("products", p["id"])])
     col.markdown(
-        tile_html(p["id"], p["name"], f"{p['brand']} · {p['price']:.0f} €",
-                  badges, height=height, swatches=p["colors"])
+        tile_html(p["id"], p["name"], f"{p['brand']} · {dh(p['price'])}",
+                  badges, height=height, swatches=p["colors"], img=img)
         + f'<div style="margin:2px 0 6px 0">{"".join(tags)}</div>',
         unsafe_allow_html=True,
     )
     in_dw = any(d["id"] == p["id"] for d in st.session_state.dream_wardrobe)
-    if col.button(("✓ Rêvé") if in_dw else cta,
-                  key=f"dw_{p['id']}_{key_suffix}", use_container_width=True):
+    libelle = "Rêvé ✓" if in_dw else (cta or "Dream Wardrobe ✦")
+    if col.button(libelle,
+                  key=f"dw_{p['id']}_{key_suffix}", use_container_width=True,
+                  help="Épingler / retirer cette pièce dans tes envies d'achat"):
         if in_dw:
             st.session_state.dream_wardrobe = [d for d in st.session_state.dream_wardrobe if d["id"] != p["id"]]
         else:

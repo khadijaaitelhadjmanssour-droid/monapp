@@ -23,14 +23,14 @@ def render():
     plan = "premium" if p.get("premium") else "standard"
     with c1:
         _plan_card(
-            "Gratuit", "0 €",
+            "Gratuit", "0,00 DH",
             ["Quiz + profil style", "Fil & épings", "Tenues du jour limitées (2/jour)",
              "Dream Wardrobe : 5 places", "Assistant cadeaux de base"],
             "✅ Ton plan actuel" if plan != "premium" else "",
         )
     with c2:
         _plan_card(
-            "Premium ✦", "9,99 €/mois (démo)",
+            "Premium ✦", "9,99 DH/mois (démo)",
             ["Analyse complète de ta garde-robe", "Alertes promo illimitées",
              "Génération de tenues illimitée", "Recommandations LLM avancées",
              "Assistant cadeaux « mots doux »", "Dream Wardrobe sans limite"],
@@ -38,7 +38,7 @@ def render():
         )
     with c3:
         _plan_card(
-            "Styliste+", "24,99 €/mois (démo)",
+            "Styliste+", "24,99 DH/mois (démo)",
             ["Tout Premium", "Un styliste humain vérifie tes looks chaque mois",
              "Sessions visio annales", "Accès aux ventes privées partenaires"],
             "",
@@ -60,13 +60,13 @@ def render():
     st.markdown("#### Pour les marques & les stylistes 🤝")
     m1, m2, m3, m4 = st.columns(4)
     with m1:
-        theme.stat_card("Affiliation", "8-15 % commission / vente démo")
+        theme.stat_card("8–15 %", "commission d'affiliation / vente (démo)")
     with m2:
-        theme.stat_card("Sponsorisés", "placements marqués dans le fil (DÉMO)")
+        theme.stat_card("100 %", "placements sponsorisés étiquetés dans le fil")
     with m3:
-        theme.stat_card("Stylistes", "10 % sur garde-robe achetable")
+        theme.stat_card("10 %", "reversé aux stylistes sur leur garde-robe achetable")
     with m4:
-        theme.stat_card("2 plans ✦", "abonnements premium")
+        theme.stat_card("2 plans ✦", "abonnements premium (tarifs démo en DH)")
     st.info("Le fil public mélange du communautaire et du sponsorisé, toujours "
             "étiqueté (badge violet « Sponsorisé »). Aucune donnée réelle de marque "
             "n'est chargée ici.", icon="🧾")

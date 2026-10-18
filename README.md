@@ -47,16 +47,27 @@ PATH, ou appelez l'interpréteur en chemin absolu :
 
 ## Fonctionnalités (ce qui tourne, ce qui est simulé)
 
+- **Monnaie** : tous les prix de l'app (produits, tenues, célébrités,
+  abonnements, cadeaux) sont affichés en **dirhams (DH)** via une fonction
+  unique `core/format.dh()` — ex. `1 250,00 DH`. Les valeurs numériques
+  du catalogue démo sont inchangées.
+- **Illustrations** : `assets/` contient 61 SVG générés par
+  `tools/gen_assets.py` (une illustration unique par produit, look, célébrité,
+  créateur, style et catégorie). Ils sont committés avec le code et marchent
+  donc identiquement en local et sur Streamlit Cloud, sans URL externe et
+  sans photo inventée de vraie personne. Si un fichier manque, la tuile
+  retombe sur son dégradé déterministe.
+
 | Page | Fonctionnalités | État |
 |---|---|---|
-| **Le fil** | feed masonry filtrable (styles, occasion, sponsorisés), épingle, suivre des créateurs | contenu : données de démo |
-| **Styliste IA** | tenues du jour générées, matching produit avec explication (style/budget/occasion/éthique), chat d'agent, déverrouillage Premium | IA = moteur de règles local *explicite*, chat = règles |
-| **Profil & Style** | quiz 5 étapes (styles, couleurs, budget, occasions, mode de vie), portrait IA | IA = scoring local, prêt pour LLM |
-| **Garde-robe** | ajout de pièces (photos resize localement via Pillow), tenues à vos propres vêtements | persistance JSON locale |
-| **Dream Wardrobe** | prix cible, veille promo « du jour » (simulation), alternatives IA moins chères | prix réels simulés par hash daté |
-| **Communauté** | créateurs/stylistes à suivre, moodboards, épings | profils de démo |
-| **Extras** | mode éthique (filtres impact), friperie, looks de célébrités + adapter-budget, assistant cadeaux | tout sur le catalogue DÉMO |
-| **Premium & Offres** | plans (gratuit / Premium / Styliste+), modèle économique (affiliation, sponsored, stylistes), formulaire partenaires | aucun paiement réel |
+| **Le fil** | feed masonry filtrable (styles, occasion, sponsorisés), recherche texte, épingle, suivre des créateurs | contenu : données de démo |
+| **Styliste IA** | tenues du jour générées (vignettes + détail DH), matching produit avec explication (style/budget/occasion/éthique), chat d'agent, déverrouillage Premium | IA = moteur de règles local *explicite*, chat = règles |
+| **Profil & Style** | quiz 5 étapes — sélecteur de styles illustré en boutons (max 4), couleurs, budget (DH), occasions, mode de vie — portrait IA | IA = scoring local, prêt pour LLM |
+| **Garde-robe** | ajout de pièces (photos resize localement via Pillow, repli illustration de catégorie), tenues à vos propres vêtements | persistance JSON locale reliée (`init()` reprend le dernier profil) |
+| **Dream Wardrobe** | prix cible (DH), veille promo « du jour » (simulation), alternatives IA moins chères, vidange à double confirmation | prix simulés par hash daté |
+| **Communauté** | créateurs/stylistes à suivre (avatars illustrés), moodboards avec illustrations, épings (y compris adaptations célébrités) | profils de démo |
+| **Extras** | mode éthique (filtres impact), friperie, looks de célébrités + adaptation budget (enregistrable → Mes épings), assistant cadeaux | tout sur le catalogue DÉMO |
+| **Premium & Offres** | plans en DH (gratuit / 9,99 / 24,99), modèle économique, formulaire partenaires | aucun paiement réel |
 
 ## Architecture (évolutive)
 
@@ -66,11 +77,16 @@ core/
   state.py             # session + persistance JSON (data/users/<id>.json)
   theme.py             # design system (CSS, chips, hero, stats, tuiles)
   demo_data.py         # 100 % simulés : catalogue, créateurs, feed, célébrités
+  format.py            # devise centralisée : prix en dirhams (DH)
   ai_engine.py         # moteur IA explicite : scoring, tenues, cadeaux, chat
-views/                 # écrans de l'app (nommé volontairement ni « pages » :
+views/                 # écrans de l'app (nommé volontairement pas « pages » :
   fil.py, quiz.py, styliste_ia.py, garde_robe.py, dream.py,   # Streamlit
   communaute.py, extras.py, premium.py                        # auto-page)
-ui/components.py       # tuiles Pinterest-like, cartes, boutons d'action
+ui/
+  components.py        # tuiles Pinterest-like, cartes, boutons d'action
+  assets.py            # chargeur d'illustrations locales (cache + repli)
+assets/                # 61 illustrations SVG committées (voir gen_assets)
+tools/gen_assets.py    # régénération des illustrations
 .streamlit/config.toml # thème clair bord pink/violet
 data/                  # uploads + persistance utilisateur (créés à l'exécution)
 ```
@@ -100,6 +116,8 @@ data/                  # uploads + persistance utilisateur (créés à l'exécut
 
 ## Nettoyage de la démo
 
-Un bouton **« ↺ Réinitialiser la démo »** en bas de la sidebar efface la
-session ; les fichiers persos restent sous `data/users/` (et `data/uploads/`),
-que vous pouvez simplement supprimer.
+Un bouton **« ↺ Réinitialiser la démo »** en bas de la sidebar repart d'un
+profil vierge ; le rafraîchissement de la page reprend le dernier profil
+enregistré. Pour tout effacer : supprimer `data/users/` et `data/uploads/`.
+Sur Streamlit Cloud le disque est éphémère : chaque session redémarre à vide,
+ce qui correspond au principe « données de démo ».

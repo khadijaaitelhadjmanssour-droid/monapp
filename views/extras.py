@@ -5,7 +5,9 @@ import streamlit as st
 
 from core import ai_engine, state, theme
 from core.demo_data import CELEB_LOOKS, PRODUCTS_BY_ID
-from ui.components import gradient_for, product_card, tile_html
+from core.format import dh, dh0
+from ui import assets
+from ui.components import product_card, tile_html
 
 STYLES_GIFT = ["minimaliste", "chic parisien", "bohème", "romantique", "streetwear",
                "rock", "vintage", "business", "casual", "éthique", "cozy"]
@@ -77,9 +79,10 @@ def _celebrites():
             '<span class="t-badge badge-demo">CÉLÉBRITÉ DÉMO</span>',
             height=150,
             swatches=[PRODUCTS_BY_ID[q]["colors"][0] for q in look["products"]],
+            img=assets.bg_deck([("celebs", look["id"])]),
         ), unsafe_allow_html=True)
         col.markdown(f"**{look['desc']}**")
-        col.caption(f"Prix presse « dark-line » ~{look['price_celeb']:.0f} € "
+        col.caption(f"Prix presse « dark-line » ~{dh(look['price_celeb'])} "
                     "(chiffre imagé, DÉMO)")
         if col.button("✧ Adapter à mon style & budget", key=f"adapt_{look['id']}",
                       use_container_width=True):
@@ -99,23 +102,35 @@ def adapter_look(look, col):
             if alt:
                 adapted.append(alt)
                 total += alt["price"]
-                notes.append(f"« {prod['name']} » ({prod['price']:.0f} €) → {alt['name']} "
-                             f"({alt['price']:.0f} €, plus accessible)")
+                notes.append(f"« {prod['name']} » ({dh0(prod['price'])}) → {alt['name']} "
+                             f"({dh0(alt['price'])}, plus accessible)")
                 continue
         adapted.append(prod)
         total += prod["price"]
 
     col.markdown("**Ton adaptation :**")
     col.markdown(theme.chips([q["name"] for q in adapted]), unsafe_allow_html=True)
-    col.markdown(f"Total ≈ **{total:.0f} €** vs {look['price_celeb']:.0f} € version star "
-                 f"– économie ≈ {look['price_celeb'] - total:.0f} € 🎉")
+    col.markdown(f"Total ≈ **{dh(total)}** vs {dh(look['price_celeb'])} version star "
+                 f"– économie ≈ {dh0(look['price_celeb'] - total)} 🎉")
     if notes:
         col.caption("Choix remplacés : " + " · ".join(notes))
-    if col.button("💾 Enregistrer cette adaptation", key=f"saveadapt_{look['id']}",
+    aid = f"adapt_{look['id']}"
+    if col.button("💾 Enregistrer cette adaptation",
+                  key=f"saveadapt_{look['id']}",
                   use_container_width=True):
-        st.session_state["looks_sauvegardes"].append(f"adapt_{look['id']}")
+        st.session_state.adapted_looks[aid] = {
+            "celeb": look["celeb"],
+            "source": look["id"],
+            "total": total,
+            "pieces": [q["name"] for q in adapted],
+            "notes": notes,
+        }
+        if aid not in st.session_state.looks_sauvegardes:
+            st.session_state.looks_sauvegardes.append(aid)
         state.notif("Adaptation enregistrée dans tes épings ✧")
         st.rerun()
+    if st.session_state.adapted_looks.get(aid):
+        col.caption("✔ Enregistrée — visible dans Communauté → Mes épings.")
 
 
 def _cadeaux():
@@ -127,7 +142,7 @@ def _cadeaux():
     age = c2.slider("Âge approximatif", 5, 95, 35)
     styles = c3.multiselect("Son style", STYLES_GIFT, default=["casual"],
                             placeholder="choisir…")
-    budget = st.slider("Budget (€)", 10, 300, int(p["budget"]), step=5)
+    budget = st.slider("Budget (DH)", 10, 300, int(p["budget"]), step=5)
 
     if st.button("🎁 Trouver des idées", type="primary"):
         gifts = ai_engine.cadeaux(budget, styles, rel)
@@ -136,7 +151,7 @@ def _cadeaux():
     res = st.session_state.get("gift_result")
     if res:
         rel, age, gifts, budget = res
-        st.markdown(f"#### Propositions pour : {rel}, ~{age} ans · budget {budget:.0f} €")
+        st.markdown(f"#### Propositions pour : {rel}, ~{age} ans · budget {dh(budget)}")
         cols = st.columns(4)
         for i, prod in enumerate(gifts):
             col = cols[i % 4]

@@ -5,6 +5,8 @@ import streamlit as st
 
 from core import ai_engine, state, theme
 from core.demo_data import PRODUCTS_BY_ID
+from core.format import dh, dh0
+from ui import assets
 from ui.components import product_card, tile_html
 
 
@@ -36,9 +38,8 @@ def render():
         st.session_state["tenues_jour"] = ai_engine.generer_tenues(p, n=3)
         st.rerun()
 
-    ncols = st.columns(1)
     for t in st.session_state["tenues_jour"]:
-        _outfit_card(t, ncols[0])
+        _outfit_card(t)
 
     # ── Recommandations boutique ─────────────────────────────────────────────
     st.markdown("#### Recommandées pour toi")
@@ -63,46 +64,57 @@ def render():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def _outfit_card(t, col):
-    """Carte à la tenue généré par l'IA."""
+def _outfit_card(t):
+    """Carte tenue générée par l'IA, avec vignettes des pièces."""
     pieces_lines = []
     for q in t["pieces"]:
         sw = "".join(f'<span class="sw" style="background:{c}; display:inline-block;'
                      f' width:11px; height:11px; border-radius:50%; margin-left:4px;"></span>'
                      for c in q["colors"][:3])
+        thumb = assets.img_tag("products", q["id"], size=34, radius=10,
+                               alt=q["name"])
         pieces_lines.append(
-            f"<div style='display:flex; justify-content:space-between; font-size:.82rem;"
-            f" margin:2px 0;'><span>{q['name']} <span style='opacity:.6'>· {q['brand']}</span>"
-            f"{sw}</span><b>{q['price']:.0f} €</b></div>"
+            f"<div style='display:flex; align-items:center; gap:8px; margin:4px 0;'>"
+            f"<span>{thumb}</span>"
+            f"<span style='flex:1; font-size:.85rem'>{q['name']} "
+            f"<span style='opacity:.6'>· {q['brand']}</span>{sw}</span>"
+            f"<b style='font-size:.85rem'>{dh(q['price'])}</b></div>"
         )
     sec_chip = ('<span class="chip chip-second"> principale en friperie possible</span>'
                 if any(q["secondhand"] for q in t["pieces"]) else "")
-    depasse = ('<span class="chip chip-second">au-dessus du budget ⇒ alternatives dans le '
-               'Dream Wardrobe</span>' if t["depasse_budget"] else "")
+    depasse = ('<span class="chip chip-second"> au-dessus du budget ⇒ alternatives dans '
+               'le Dream Wardrobe</span>' if t["depasse_budget"] else "")
 
-    col.markdown(
+    st.markdown(
         '<div class="outfit-card">'
         f"<h4>{t['nom']} <span style='opacity:.5; font-weight:400'>· {t['occasion']}</span></h4>"
         + theme.chips(t["styles"][:2], cls="chip")
         + "".join(pieces_lines)
-        + f"<div style='margin-top:8px'><b>Total ≈ {t['prix_total']:.0f} €</b> · "
+        + f"<div style='margin-top:8px'><b>Total ≈ {dh(t['prix_total'])}</b> · "
         f"éthique {t['eco_moyen']}/5 {sec_chip}</div>"
         + depasse
         + f"<div class='why'>👀 <b>Pourquoi ça marche :</b> {t['pourquoi']}</div>"
         "</div>",
         unsafe_allow_html=True,
     )
-    c1, c2, c3 = col.columns(3)
-    if c1.button("💾 Enregistrer la tenue", key=f"save_t_{t['id']}",
-                 use_container_width=True):
-        st.session_state.tenues.append({
-            "id": t["id"], "nom": t["nom"], "occasion": t["occasion"],
-            "pieces": [q["id"] for q in t["pieces"]],
-        })
-        state.notif(f"Tenue « {t['nom']} » enregistrée dans ta garde-robe")
-        st.rerun()
-    if c2.button("✦ Ajouter au Dream Wardrobe", key=f"dw_t_{t['id']}",
-                 use_container_width=True):
+    c1, c2, c3 = st.columns(3)
+    deja = any(o.get("id") == t["id"] for o in st.session_state.tenues)
+    if c1.button(("✓ Enregistrée" if deja else "💾 Enregistrer"),
+                 key=f"save_t_{t['id']}", use_container_width=True,
+                 help="Garder cette tenue dans ta garde-robe"):
+        if deja:
+            st.warning("Cette tenue est déjà dans ta garde-robe — utilise 🎲 pour de "
+                       "nouvelles idées.", icon="🔁")
+        else:
+            st.session_state.tenues.append({
+                "id": t["id"], "nom": t["nom"], "occasion": t["occasion"],
+                "pieces": [q["id"] for q in t["pieces"]],
+            })
+            state.notif(f"Tenue « {t['nom']} » enregistrée dans ta garde-robe")
+            st.rerun()
+    if c2.button("✦ Dream Wardrobe", key=f"dw_t_{t['id']}",
+                 use_container_width=True,
+                 help="Mettre toutes les pièces dans tes envies"):
         for q in t["pieces"]:
             if not any(d["id"] == q["id"] for d in st.session_state.dream_wardrobe):
                 prod = PRODUCTS_BY_ID[q["id"]]
@@ -113,7 +125,9 @@ def _outfit_card(t, col):
                 })
         state.notif("Pièces ajoutées à ton Dream Wardrobe ✦")
         st.rerun()
-    if c3.button("Pourquoi pas autre chose ?", key=f"why_t_{t['id']}", use_container_width=True):
+    if c3.button("🤔 Pourquoi ?", key=f"why_t_{t['id']}",
+                 use_container_width=True,
+                 help="Explication IA de cette tenue"):
         st.toast(t["pourquoi"], icon="🤔")
         st.rerun()
 
@@ -138,7 +152,7 @@ def _premium_block(p):
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
-    if c1.button("✦ Activer Premium (démo)", type="primary", use_container_width=True):
+    if c1.button("✦ Activer Premium", type="primary", use_container_width=True):
         p["premium"] = True
         state.notif("Premium activé pour cette démonstration ✨")
         st.rerun()
@@ -176,7 +190,8 @@ def _analyse_approfondie(p):
 
 def _chat(p, recos):
     for m in st.session_state.chat:
-        with st.chat_message(m["role"], avatar=("🧑" if m["role"] == "user" else "✦")):
+        with st.chat_message("user" if m["role"] == "user" else "assistant",
+                             avatar="user" if m["role"] == "user" else "assistant"):
             st.markdown(m["content"])
 
     quick1, quick2, quick3, quick4 = st.columns(4)

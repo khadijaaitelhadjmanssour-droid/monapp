@@ -10,6 +10,7 @@
 import random
 
 from .demo_data import PRODUCTS_BY_ID
+from .format import dh0
 
 
 def score_style(styles_item, scores) -> float:
@@ -128,9 +129,9 @@ def expliquer_tenue(pieces, profile, prix, depasse) -> str:
     hero = pieces[0]
     why = [f"style «{hero['styles'][0]}» aligné avec tes goûts"]
     if not depasse:
-        why.append(f"dans ton budget ({prix:.0f} € ≤ {profile['budget']:.0f} €)")
+        why.append(f"dans ton budget ({dh0(prix)} ≤ {dh0(profile['budget'])})")
     else:
-        why.append(f"au-dessus du budget ({prix:.0f} € vs {profile['budget']:.0f} €) — "
+        why.append(f"au-dessus du budget ({dh0(prix)} vs {dh0(profile['budget'])}) — "
                    "je cherche des alternatives dans le Dream Wardrobe")
     fripees = [p for p in pieces if p["secondhand"]]
     if fripees:
@@ -199,7 +200,7 @@ def reponse_agent(texte, profile, recos) -> str:
                 "Pose-moi tes questions : une tenue, un cadeau, une alternative "
                 "seconde main, une explication sur une reco…")
     if "budget" in t:
-        return (f"Ton budget enregistré : **{p['budget']:.0f} €** par pièce en moyenne. "
+        return (f"Ton budget enregistré : **{dh0(p['budget'])}** par pièce en moyenne. "
                 "Avec l'option Premium je peux affiner par catégorie (chaussures, manteaux…). "
                 "Tu peux le modifier directement dans le quiz.")
     if "cadeau" in t:
@@ -209,23 +210,23 @@ def reponse_agent(texte, profile, recos) -> str:
         alt = next((r for r in recos if r[0]["secondhand"]), None)
         if alt:
             return (f"La friperie t'ouvre de belles portes : **{alt[0]['name']}** "
-                    f"({alt[0]['price']:.0f} €), match de {alt[1]['match_pct']} % "
+                    f"({dh0(alt[0]['price'])}), match de {alt[1]['match_pct']} % "
                     "avec ton style. Réserve-la dans ton Dream Wardrobe !")
         return "Les articles marqués « fripée » se trouvent dans Extras → Seconde main 🙂"
     if "pourquoi" in t and recos:
         r = recos[0]
-        return (f"Top reco : **{r[0]['name']}** ({r[0]['price']:.0f} €) affiche "
+        return (f"Top reco : **{r[0]['name']}** ({dh0(r[0]['price'])}) affiche "
                 f"**{r[1]['match_pct']} %** — style {r[1]['style']*100:.0f} %, "
                 f"budget {r[1]['budget']*100:.0f} %, occasion {r[1]['occasion']*100:.0f} %.")
     if any(m in t for m in ["tenue", "look", "habille", "porte", "sors"]):
         tenue = generer_tenues(p, n=1)[0]
         noms = ", ".join(q["name"] for q in tenue["pieces"])
         return (f"Je te propose **{tenue['nom']}** ({tenue['occasion'].lower()}) : {noms}. "
-                f"Total ≈ {tenue['prix_total']:.0f} € · éthique {tenue['eco_moyen']}/5. "
+                f"Total ≈ {dh0(tenue['prix_total'])} · éthique {tenue['eco_moyen']}/5. "
                 f"Pourquoi : {tenue['pourquoi']}")
     if "ethique" in t or "durable" in t:
         eco = [r for r in recos if r[0]["ethical"] >= 4]
-        noms = ", ".join(f"**{r[0]['name']}** ({r[0]['price']:.0f} €)" for r in eco[:3]) or "—"
+        noms = ", ".join(f"**{r[0]['name']}** ({dh0(r[0]['price'])})" for r in eco[:3]) or "—"
         return f"Les pièces durables (impact ≥ 4/5) : {noms}. Filtre-le depuis Extras → Mode éthique."
     if "premium" in t or "abonn" in t:
         etat = "actif ✦" if p["premium"] else "inactif (démo)"
@@ -234,7 +235,7 @@ def reponse_agent(texte, profile, recos) -> str:
     if recos:
         r = recos[0]
         return (f"Je crois que **{r[0]['name']}** (match {r[1]['match_pct']} %, "
-                f"{r[0]['price']:.0f} €) ferait de belles choses dans ta garde-robe. "
+                f"{dh0(r[0]['price'])}) ferait de belles choses dans ta garde-robe. "
                 "Précise ta demande — tenue, budget, cadeau, seconde main, éthique — "
                 "pour que j'affine ✚")
     return "Rafraîchis ton profil dans le quiz, puis reviens me voir 💕"
