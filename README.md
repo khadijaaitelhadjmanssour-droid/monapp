@@ -51,16 +51,25 @@ PATH, ou appelez l'interpréteur en chemin absolu :
   abonnements, cadeaux) sont affichés en **dirhams (DH)** via une fonction
   unique `core/format.dh()` — ex. `1 250,00 DH`. Les valeurs numériques
   du catalogue démo sont inchangées.
-- **Illustrations** : `assets/` contient 61 SVG générés par
+- **Illustrations & photos** : `assets/` contient 61 SVG générés par
   `tools/gen_assets.py` (une illustration unique par produit, look, célébrité,
-  créateur, style et catégorie). Ils sont committés avec le code et marchent
-  donc identiquement en local et sur Streamlit Cloud, sans URL externe et
-  sans photo inventée de vraie personne. Si un fichier manque, la tuile
-  retombe sur son dégradé déterministe.
+  créateur, style et catégorie) PLUS de vraies photographies de mode dans
+  `assets/photos/` : `F01…F12.jpg` (looks du fil) et divers produits
+  (`P01…P24`), récupérées par `tools/fetch_photos.py` (Unsplash, licence libre,
+  associées explicitement à chaque identifiant, jamais par position). Tout est
+  committé avec le code et marche donc identiquement en local et sur Streamlit
+  Cloud, sans URL externe et sans photo inventée de vraie personne. Si un
+  visuel manque, la tuile retombe sur l'illustration SVG de SA catégorie, puis
+  sur le dégradé déterministe.
+- **Page de détail des looks** : chaque carte du fil a un bouton
+  « 👁 Voir le look » qui ouvre une vraie page de détail (dans `views/fil.py`)
+  : grande photo, styles, occasions, créateur, liste des pièces avec prix DH,
+  total calculé, actions Épingler / Suivre le créateur / Dream Wardrobe par
+  pièce, et bouton « ← Retour au fil ».
 
 | Page | Fonctionnalités | État |
 |---|---|---|
-| **Le fil** | feed masonry filtrable (styles, occasion, sponsorisés), recherche texte, épingle, suivre des créateurs | contenu : données de démo |
+| **Le fil** | feed masonry filtrable (styles, occasion, sponsorisés), recherche texte, **page de détail de chaque look** (photo + pièces + total DH), épingle, suivre des créateurs (ids C, partagés avec Communauté), replis SVG de catégorie | contenu : données de démo + photos Unsplash libres |
 | **Styliste IA** | tenues du jour générées (vignettes + détail DH), matching produit avec explication (style/budget/occasion/éthique), chat d'agent, déverrouillage Premium | IA = moteur de règles local *explicite*, chat = règles |
 | **Profil & Style** | quiz 5 étapes — sélecteur de styles illustré en boutons (max 4), couleurs, budget (DH), occasions, mode de vie — portrait IA | IA = scoring local, prêt pour LLM |
 | **Garde-robe** | ajout de pièces (photos resize localement via Pillow, repli illustration de catégorie), tenues à vos propres vêtements | persistance JSON locale reliée (`init()` reprend le dernier profil) |
@@ -84,9 +93,10 @@ views/                 # écrans de l'app (nommé volontairement pas « pages »
   communaute.py, extras.py, premium.py                        # auto-page)
 ui/
   components.py        # tuiles Pinterest-like, cartes, boutons d'action
-  assets.py            # chargeur d'illustrations locales (cache + repli)
-assets/                # 61 illustrations SVG committées (voir gen_assets)
-tools/gen_assets.py    # régénération des illustrations
+  assets.py            # chargeur : photos localement (assets/photos) + SVG (cache + repli)
+assets/                # 61 illustrations SVG + vraies photos de mode (voir gen_assets / fetch_photos)
+tools/gen_assets.py    # régénération des illustrations SVG
+tools/fetch_photos.py  # retrieval des vraies photos (Unsplash) par identifiant unique
 .streamlit/config.toml # thème clair bord pink/violet
 data/                  # uploads + persistance utilisateur (créés à l'exécution)
 ```

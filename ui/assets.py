@@ -13,6 +13,7 @@ from pathlib import Path
 from streamlit import cache_data
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+PHOTOS_DIR = ASSETS_DIR / "photos"  # vraies photos de mode (tools/fetch_photos.py)
 
 
 @lru_cache(maxsize=1)
@@ -52,6 +53,30 @@ def bg_deck(kind_key_pairs) -> str:
 
 # Ancien nom conservé le temps de la migration interne
 pick = bg_deck
+
+
+@cache_data(show_spinner=False)
+def photo_uri(key: str) -> str | None:
+    """URI de la VRAIE photo assets/photos/<key>.jpg, ou None si absente."""
+    f = PHOTOS_DIR / f"{key}.jpg"
+    if not f.exists():
+        return None
+    b64 = base64.b64encode(f.read_bytes()).decode()
+    return f"data:image/jpeg;base64,{b64}"
+
+
+def photo_bytes(key: str) -> bytes | None:
+    """Octets de la photo locale, pour st.image (page de détail)."""
+    f = PHOTOS_DIR / f"{key}.jpg"
+    return f.read_bytes() if f.exists() else None
+
+
+def media_pick(photo_key: str, kind_key_pairs) -> str:
+    """Vraie photo si elle existe, sinon illustration SVG de catégorie.
+
+    Fallback garanti adapté : jamais d'image sans rapport avec le contenu.
+    """
+    return photo_uri(photo_key) or bg_deck(kind_key_pairs)
 
 
 def img_tag(kind: str, key: str, size: int = 36, radius: int = 12, alt: str = "") -> str:

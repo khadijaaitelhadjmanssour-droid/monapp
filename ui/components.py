@@ -70,7 +70,9 @@ def badges_for_item(kind="look", sponsored=False, secondhand=False, ethical=0):
     if sponsored:
         out += '<span class="t-badge badge-sponsored">Sponsorisé</span>'
     else:
-        out += f'<span class="t-badge" style="background:rgba(255,255,255,.72)">{kind_lab}</span>'
+        out += (f'<span class="t-badge" '
+                f'style="background:rgba(255,255,255,.72); margin-left:4px">'
+                f'{kind_lab}</span>')
     return out
 
 
@@ -87,7 +89,7 @@ def feed_card(f, col):
     img_sources = [("looks", f["id"])]
     if f["products"]:
         img_sources.append(("products", f["products"][0]))
-    img = assets.bg_deck(img_sources)
+    img = assets.media_pick(f["id"], img_sources)
     col.markdown(
         tile_html(f["id"], f["title"], f"{creator.get('name','')} · "
                   f"{creator.get('specialty','')}", badges, height=int(200 * f["size"]),
@@ -95,25 +97,29 @@ def feed_card(f, col):
         unsafe_allow_html=True,
     )
     col.caption(f"≈ {dh(price_total)} · {len(f['products'])} pièces")
-    b1, b2 = col.columns(2)
+    if col.button("👁 Voir le look", key=f"see_{f['id']}",
+                  use_container_width=True,
+                  help="Ouvrir la page de détail complète de ce look"):
+        st.session_state.look_page = f["id"]
+        st.rerun()
     saved = f["id"] in st.session_state.looks_sauvegardes
-    if b1.button("Épingler" if not saved else "Épinglé ✓",
-                 key=f"save_{f['id']}", use_container_width=True,
-                 help="Ajouter / retirer ce look de tes favoris ♥"):
+    if col.button("♥ Épinglé ✓" if saved else "♥ Épingler",
+                  key=f"save_{f['id']}", use_container_width=True,
+                  help="Ajouter / retirer ce look de tes favoris ♥"):
         if saved:
             st.session_state.looks_sauvegardes.remove(f["id"])
         else:
             st.session_state.looks_sauvegardes.append(f["id"])
             state.notif("Look enregistré dans tes favoris ♥")
         st.rerun()
-    follow = f["id"] in st.session_state.follows
-    if b2.button("Suivi ✓" if follow else "Suivre",
-                 key=f"fol_{f['id']}", use_container_width=True,
-                 help=f"Suivre {creator.get('name', 'ce créateur')}"):
+    follow = f["creator"] in st.session_state.follows
+    if col.button("✓ Suivi ✓" if follow else "＋ Suivre le créateur",
+                  key=f"fol_{f['id']}", use_container_width=True,
+                  help=f"Suivre {creator.get('name', 'ce créateur')}"):
         if follow:
-            st.session_state.follows.remove(f["id"])
+            st.session_state.follows.remove(f["creator"])
         else:
-            st.session_state.follows.append(f["id"])
+            st.session_state.follows.append(f["creator"])
             state.notif(f"Tu suis {creator.get('name', '')} ✦")
         st.rerun()
 
@@ -128,7 +134,7 @@ def product_card(p, col, height=160, cta="✦ Dream Wardrobe", key_suffix=""):
         tags.append('<span class="chip chip-second">Seconde main</span>')
     if p["ethical"] >= 4:
         tags.append('<span class="chip chip-eco">Éthique ✓</span>')
-    img = assets.bg_deck([("products", p["id"])])
+    img = assets.media_pick(p["id"], [("products", p["id"])])
     col.markdown(
         tile_html(p["id"], p["name"], f"{p['brand']} · {dh(p['price'])}",
                   badges, height=height, swatches=p["colors"], img=img)
